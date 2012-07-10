@@ -1136,10 +1136,10 @@ function uc_node_checkout_load_cart_item($nid) {
   // If the item hasn't been searched before...
   if (!isset($items[$nid])) {
     // Load the data from the database.
-    $result = db_query('SELECT * FROM {uc_cart_products} WHERE data LIKE :nid', array(':nid' => '%\"node_checkout_nid\";i:' . $nid . ';%'))->fetchField();
+    $result = db_query('SELECT * FROM {uc_cart_products} WHERE data LIKE :nid', array(':nid' => '%\"node_checkout_nid\";i:' . $nid . ';%'));
 
     // If a matching product was found in the DB for this node...
-    if ($item = $result->fetch()) {
+    if (!empty($result) && $item = $result->fetch()) {
       $item->data = unserialize($item->data);
       $items[$nid] = $item;
     }
