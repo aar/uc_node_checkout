@@ -198,7 +198,10 @@ function uc_node_checkout_exit() {
 
 /**
  * Implements hook_user().
+ * 
+ * NOTE: this hook has been depreciated
  */
+/*
 function uc_node_checkout_user($op, &$edit, &$user, $category = NULL) {
   switch ($op) {
     case 'load':
@@ -230,7 +233,51 @@ function uc_node_checkout_user($op, &$edit, &$user, $category = NULL) {
       break;
   }
 }
+ */
 
+/*
+ * Implements hook_user_load()
+ */
+function uc_node_checkout_user_load($users) {
+  // Fall through if this a new user load prior to checkout.
+  if (request_uri() != '/user/register?destination=cart/checkout' ||
+      $user->uid == 0) {
+    return;
+  }  
+  uc_node_checkout_user_helper($user);
+}
+
+/*
+ * Implements hook_user_login()
+ */
+function uc_node_checkout_user_login(&$edit, $account) {
+  uc_node_checkout_user_helper($account);
+}
+
+/*
+ * Helper function for hook_user_load and hook_user_login
+ */
+function uc_node_checkout_user_helper ($user) {
+  $rebuild = FALSE;
+
+  // Update the author of node checkout nodes referenced in the cart.
+  foreach (uc_cart_get_contents($user->uid, 'rebuild') as $item) {
+    // If the item has a checkout node...
+    if ($node = $item->checkout_node) {
+      // Update the author and save the node.
+      $node->uid = $user->uid;
+      node_save($node);
+
+      // Make sure we rebuild the shopping cart with the updated info.
+      $rebuild = TRUE;
+    }
+  }
+
+  // Rebuild the cart contents so the checkout nodes are updated.
+  if ($rebuild) {
+    uc_cart_get_contents($user->uid, 'rebuild');
+  }  
+}
 
 /**
  * Implements hook_form_alter().
@@ -857,25 +904,13 @@ function uc_node_checkout_node_view($node, $view_mode, $langcode) {
   }
 }
 
-/**
- * Implements hooc_uc_cart 
- */
-function uc_node_checkout_uc_cart_alter(&$items) {
-  // Load the entire related node into the item array for use in display.
-  foreach ($items as &$item) {
-    if (!isset($item->checkout_node) 
-            && isset($item->data['node_checkout_nid']) 
-            && $node = node_load($item->data['node_checkout_nid'])) {
-      $item->checkout_node = $node;
-    }      
-  }
-}
 
 /**
  * Implements hook_uc_cart_item().
  * 
  *  THIS HOOK IS DEPRECIATED IN UBERCART 7
  */
+/*
 function uc_node_checkout_uc_cart_item($op, &$item) {
   switch ($op) {
     case 'load':
@@ -920,7 +955,89 @@ function uc_node_checkout_uc_cart_item($op, &$item) {
       break;
   }
 }
+*/
 
+/**
+ * Implements hook_uc_cart 
+ */
+function uc_node_checkout_uc_cart_alter(&$items) {
+  // Load the entire related node into the item array for use in display.
+  foreach ($items as &$item) {
+    if (!isset($item->checkout_node) 
+            && isset($item->data['node_checkout_nid']) 
+            && $node = node_load($item->data['node_checkout_nid'])) {
+      $item->checkout_node = $node;
+    }      
+  }
+}
+
+/**
+ * Implements hook_entity_load 
+ */
+
+function uc_node_checkout_entity_load($entities, $type) {
+  // Load the entire related node into the item array for use in display.
+  if ($type == 'uc_cart_item') {
+    foreach ($entities as &$item) {
+      if (!isset($item->checkout_node) 
+              && isset($item->data['node_checkout_nid']) 
+              && $node = node_load($item->data['node_checkout_nid'])) {
+        $item->checkout_node = $node;
+      }      
+    }
+  }  
+}
+
+/**
+ *
+ * Implements hook_uc_order_product_can_ship
+ */
+function uc_node_checkout_uc_order_product_can_ship($item) {
+  if (isset($item->data['node_checkout_nid'])) {
+    // Look at the default $item settings to determine if there is a
+    // shippable component to this node checkout product
+    if (isset($item->data['nid']) &&
+        $uc_node_checkout_product = node_load($item->data['nid'])) {
+      // If the item was set to be 'shippable' on the node edit form of the
+      // uc_node_checkout product, not the associated node to purchase, then
+      // we'll send this off to Ubercart as a 'shippable' item and Ubercart
+      // will use this is a trigger to display the shipping pane. Else, if
+      // set to unshippable Ubercart will not trigger the shipping pane,
+      // provided there are no other shippable products in the cart with the
+      // uc_node_checkout items.
+      if ($uc_node_checkout_product->shippable == 0) {
+        // If this, then the product was set to 'not shippable'
+        return FALSE;
+      }
+      else {
+        return TRUE;
+      }
+    }
+  }  
+}
+
+/*
+ *  Implements hook_entity_delete
+ */
+function uc_node_checkout_entity_delete($entity, $type) {
+  if ($type == 'uc_cart_item') {
+    // Delete the checkout node if setting calls for it
+    if (variable_get('uc_node_checkout_delete_nodes', TRUE)) {
+      if (isset($entity->data['node_checkout_nid'])) {
+        global $user;
+        $temp_user = $user;
+        //insure that we have privilaged to delete the node
+        $user = user_load(1);
+        //Always set this to false in case the operation fails.
+        drupal_save_session(FALSE);         
+        node_delete($entity->data['node_checkout_nid']);
+
+        $user = $temp_user;
+        drupal_save_session(TRUE);         
+      }
+    }    
+  }
+}
 
 /**
  * Updates the node's CCK fields if desired.
