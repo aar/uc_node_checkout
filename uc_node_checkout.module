@@ -1024,6 +1024,16 @@ function uc_node_checkout_entity_delete($entity, $type) {
     // Delete the checkout node if setting calls for it
     if (variable_get('uc_node_checkout_delete_nodes', TRUE)) {
       if (isset($entity->data['node_checkout_nid'])) {
+        // don't delete if we are just cleaning up cart because the order is complete.
+        $cart_oid = $_SESSION['cart_order'];
+        if (isset($cart_oid)) {
+          $order_status = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :order_id", array(':order_id' => $cart_oid))->fetchField();
+          $post_checkout_status = uc_order_state_default('post_checkout');
+          if ($order_status == $post_checkout_status) {
+            return;
+          }            
+        }
+          
         global $user;
         $temp_user = $user;
         //insure that we have privilaged to delete the node
