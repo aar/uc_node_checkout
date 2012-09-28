@@ -168,15 +168,19 @@ function uc_node_checkout_type_form($form, &$form_state, $type) {
 function uc_node_checkout_type_form_submit($form, &$form_state) {
   // Save the product node ID.
   if ($form_state['values']['product_nid'] || $form_state['values']['view']) {
-    if (
-      !db_update('uc_node_checkout_types')
+    //find the uc_node_checkout_type
+    $result = db_query('SELECT n.node_type FROM {uc_node_checkout_types} n WHERE n.node_type = :type', array(':type' => $form_state['values']['type']))->fetchObject();
+   
+    if (!empty($result)) {
+      db_update('uc_node_checkout_types')
         ->fields(array(
           'product_nid' => $form_state['values']['product_nid'],
           'node_view'   => $form_state['values']['view'],
         ))
         ->condition('node_type', $form_state['values']['type'])
-        ->execute()
-    ) {
+        ->execute();      
+    }
+    else {
       db_insert('uc_node_checkout_types')
         ->fields(array(
           'node_type'   => $form_state['values']['type'],
