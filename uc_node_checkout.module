@@ -518,8 +518,11 @@ function uc_node_checkout_form_alter(&$form, &$form_state, $form_id) {
             }
           }
 
-          // If enabled, alter the submit button to say "Add to cart".
-          if (variable_get('uc_node_checkout_alter_node_submit_button', TRUE)) {
+          // If enabled and not a manual order from admin, alter the submit button to say "Add to cart".
+          if (variable_get('uc_node_checkout_alter_node_submit_button', TRUE) &&
+               empty($_GET['order_id']) &&
+               empty($_GET['product_id']) && 
+               empty($_GET['order_product_id'])) {
             $form['actions']['submit']['#value'] = variable_get('uc_product_add_to_cart_text', t('Add to cart'));
           }
         }
@@ -1402,7 +1405,11 @@ function uc_node_checkout_order_pane_nodes($op, $arg1) {
               '%product_title' => $product->title,
               '%product_model' => $product->model,
               '!create_now_link' => l(t('Create node association'), 'node/add/' . str_replace('_', '-', $association_node_type),
-                array('query' => array('order_id' => $order->order_id, 'product_id' => $product->nid, 'order_product_id' => $product->order_product_id))),
+                array('query' => array(
+                  'order_id' => $order->order_id, 
+                  'product_id' => $product->nid, 
+                  'order_product_id' => $product->order_product_id,
+                  'destination' => $_GET['q']))),
             )
           );
         }
