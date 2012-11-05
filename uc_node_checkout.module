@@ -1035,8 +1035,8 @@ function uc_node_checkout_entity_delete($entity, $type) {
           $order_status = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :order_id", array(':order_id' => $_SESSION['cart_order']))->fetchField();
         }
        
-        $post_checkout_status = uc_order_state_default('post_checkout');
-        if ($order_status == $post_checkout_status) {
+        //$post_checkout_status = uc_order_state_default('post_checkout');
+        if ($order_status !== 'in_checkout') {
           return;
         }            
         
