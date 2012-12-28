@@ -263,7 +263,8 @@ function uc_node_checkout_user_helper ($user) {
   // Update the author of node checkout nodes referenced in the cart.
   foreach (uc_cart_get_contents($user->uid, 'rebuild') as $item) {
     // If the item has a checkout node...
-    if ($node = $item->checkout_node) {
+    if (isset($item->checkout_node) && $item->checkout_node) {
+      $node = $item->checkout_node;
       // Update the author and save the node.
       $node->uid = $user->uid;
       node_save($node);
